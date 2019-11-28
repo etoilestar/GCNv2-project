@@ -12,12 +12,8 @@ def neg_loss(preds, gt):
     neg_inds = gt.lt(1.0)
     pos_alpha = 100.0
     neg_weights = torch.pow(1 - gt[neg_inds], 4.0)
-#    neg_weights = torch.pow(gt[neg_inds], 4.0)
-#    neg_weights = 5e-3
     loss = 0
-#    for pred in preds:
     pos_pred = preds[pos_inds]
- #   print(torch.unique(pos_pred))
     neg_pred = preds[neg_inds]
 
     pos_loss = torch.log(pos_pred+1e-12) * torch.pow(1 - pos_pred, 2) * pos_alpha
@@ -50,19 +46,7 @@ class CeLoss:
     def __call__(self, Cx, Ox):
         assert Ox.size() == Cx.size()
         Cx = Cx.detach()
- #       return self.fcloss(Ox, Cx)
-#        return -self.alpha1*self._sum(Cx, Ox) - self.alpha2*self._sum(1-Cx, 1-Ox) 
-     #   Ix = torch.rand_like(Cx)
-     #   Ix[(Cx==1.0)|(Ix<0.1)] = 1.0
-     #   Ix[Ix!=1.0] = 0
-     #   Ix.detach_()
-     #   Ft, T = torch.sum(Ix), torch.sum(Cx)
-     #   self.alpha1 = (Ft-T)/100.0
-     #   self.alpha2 = (T)/100.0
-     #   L = -self.alpha1*self._sum(Ix, Cx, torch.sigmoid(Ox)) - self.alpha2*self._sum(Ix, 1-Cx, 1-torch.sigmoid(Ox))
-     #   return L/torch.sum(Ix)
         return neg_loss(torch.sigmoid(Ox), Cx)
-        return self.loss(Ox, Cx)
 
 
 class DetLoss:
@@ -100,9 +84,7 @@ class MYLoss:
         loss2 = self.lambda_det * self.det_loss(labels1, labels2, out1, out2)
         out2_0 = out2_0.detach()
         out2_1 = out2_1.detach()
-#        out2.detach_()
         if not params['cal_match']:
             return loss2
         loss = loss1+loss2
-#        print(loss1.item(), loss2.item())
         return loss, loss1, loss2
