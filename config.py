@@ -12,6 +12,6 @@ params['c'] = 8
 params['learning_rate'] = 1e-4
 params['num_epoch'] = 300
 params['model_path'] = './model/GCNv2.pth'
-params['random drop'] = 0.9
+params['random drop'] = 0
 params['cal_match'] = True
 params['log']  = './log/loss.txt'
