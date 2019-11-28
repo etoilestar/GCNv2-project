@@ -29,8 +29,8 @@ class GCNv2(torch.nn.Module):
 
         # Descriptor
         self.convF_1 = torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
-        self.convF_2 = torch.nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0)
-
+        self.convF_2 = torch.nn.Conv2d(256, 32, kernel_size=1, stride=1, padding=0)
+#        self.convF_2 = torch.nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0) 
         # Detector
         self.convD_1 = torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
         self.convD_2 = torch.nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0)
@@ -65,17 +65,23 @@ class GCNv2(torch.nn.Module):
 def later_deal(label, desc):
     Binary = BinaryLayer.apply
     """对每个batch的每个channel，分别进行grid_sample的操作，对于groundtruth中的关键点，找到featuremap中的对应位置，提取特征向量"""
-#    for batch in range(label.size()[0]):
-    x, y = torch.nonzero(label[0] == 1.0)[:, 0], torch.nonzero(label[0] == 1.0)[:, 1]
+    x, y = torch.nonzero(label[0] >= 1.0)[:, 0], torch.nonzero(label[0] >= 1.0)[:, 1]
 #            如果为pytorch2.0版本可以改为使用下面两行语句其中一条代替上面语句
 #            x, y = torch.nonzero(label[batch][0] == 1.0, as_tuple=True)
 #            x, y = torch.where(label[batch][0] == 1.0)
+#    print(label[0].size(), label[0][x.unsqueeze(-1)].squeeze().size(), y.unsqueeze(-1).size())
+    value = torch.gather(label[0][x.unsqueeze_(-1)].squeeze(), 1, y.unsqueeze_(-1))
     x = x.type(torch.FloatTensor)
     y = y.type(torch.FloatTensor)
+    m = torch.cat((torch.cat((x.cuda(),y.cuda()), -1), value.cuda()), -1)
+#    print(y.size(), x.size(), value.size(), m.size())
+    
+    m = m[m[:,2].argsort()]
+    x, y = m[:, 0], m[:, 1]
+    x.unsqueeze_(-1).cuda()
+    y.unsqueeze_(-1).cuda()
     x_div = x*2/label.size()[-2]-1
     y_div = y*2/label.size()[-1]-1
-    x_div.unsqueeze_(-1)
-    y_div.unsqueeze_(-1)
     grid = torch.cat((x_div,y_div), -1).unsqueeze_(0).unsqueeze_(0).cuda()
     indice0 = torch.tensor(0).cuda()
 #    indice1 = torch.tensor(batch).cuda()
