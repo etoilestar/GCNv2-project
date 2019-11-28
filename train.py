@@ -48,7 +48,7 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
         out2_0.x = x2
         out2_0.y = y2
         sort_x2, sort_y2 = out2_0.x[sort_index], out2_0.y[sort_index]
-        d_matrix = torch.abs(out1_0.x+out1_0.y-sort_x2-sort_y2)
+        d_matrix = torch.abs(out1_0.x-sort_x2)+torch.abs(out1_0.y-sort_y2)
         modify_d_matrix = torch.zeros_like(d_matrix).cuda()
         modify_d_matrix[d_matrix>8.0] = 1.0
         maxi, index = torch.max(modify_d_matrix, 0)
