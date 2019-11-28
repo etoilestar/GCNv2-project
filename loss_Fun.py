@@ -92,7 +92,7 @@ class MYLoss:
         self.feat_loss = feat_loss
         self.det_loss = det_loss
         self.lambda_feat = 100
-        self.lambda_det = 0.01
+        self.lambda_det = 1
         self.c = 8
 
     def __call__(self, labels1, labels2, out1_0, out1, out2_0, out2, out2_1):
@@ -106,47 +106,3 @@ class MYLoss:
         loss = loss1+loss2
 #        print(loss1.item(), loss2.item())
         return loss, loss1, loss2
-
-class FocalLoss(nn.Module):
-    def __init__(self,
-                 alpha=0.25,
-                 gamma=2,
-                 reduction='mean',
-                 ignore_lb=255):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-        self.ignore_lb = ignore_lb
-
-    def forward(self, logits, label):
-        '''
-        args: logits: tensor of shape (N, H, W)
-        args: label: tensor of shape(N, H, W)
-        '''
-        # overcome ignored label
- #       ignore = label.data.cpu() == self.ignore_lb
- #       n_valid = (ignore == 0).sum()
- #       label[ignore] = 0
-
- #       ignore = ignore.nonzero()
- #       print(ignore)
- #       _, M = ignore.size()
- #       a, *b = ignore.chunk(M, dim=1)
- #       mask = torch.ones_like(logits)
- #       print([a, torch.arange(mask.size(1)), *b])
- #       mask[[a, torch.arange(mask.size(1)), *b]] = 0
-
-        # compute loss
-        print(torch.all(logits == label))
-        probs = torch.sigmoid(logits)
-#        lb_one_hot = logits.data.clone().zero_().scatter_(1, label.unsqueeze(1), 1)
-        pt = torch.where(label == 1, probs, 1-probs)
-        alpha = self.alpha*label + (1-self.alpha)*(1-label)
-        loss = -alpha*pt*((1-pt)**self.gamma)*torch.log(pt + 1e-12)
- #       loss[mask == 0] = 0
-        if self.reduction == 'mean':
-            loss = loss.sum(dim=1).sum()/label.sum()
-        return loss
-
-
