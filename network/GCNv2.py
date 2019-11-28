@@ -36,7 +36,6 @@ class GCNv2(torch.nn.Module):
         self.convD_2 = torch.nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=0)
 
         self.pixel_shuffle = torch.nn.PixelShuffle(16)
-#        self.Binary = BinaryLayer.apply
  
     def forward(self, x):
         x = self.elu(self.conv1(x))
@@ -69,12 +68,10 @@ def later_deal(label, desc):
 #            如果为pytorch2.0版本可以改为使用下面两行语句其中一条代替上面语句
 #            x, y = torch.nonzero(label[batch][0] == 1.0, as_tuple=True)
 #            x, y = torch.where(label[batch][0] == 1.0)
-#    print(label[0].size(), label[0][x.unsqueeze(-1)].squeeze().size(), y.unsqueeze(-1).size())
     value = torch.gather(label[0][x.unsqueeze_(-1)].squeeze(), 1, y.unsqueeze_(-1))
     x = x.type(torch.FloatTensor)
     y = y.type(torch.FloatTensor)
     m = torch.cat((torch.cat((x.cuda(),y.cuda()), -1), value.cuda()), -1)
-#    print(y.size(), x.size(), value.size(), m.size())
     
     m = m[m[:,2].argsort()]
     x, y = m[:, 0], m[:, 1]
@@ -84,7 +81,6 @@ def later_deal(label, desc):
     y_div = y*2/label.size()[-1]-1
     grid = torch.cat((x_div,y_div), -1).unsqueeze_(0).unsqueeze_(0).cuda()
     indice0 = torch.tensor(0).cuda()
-#    indice1 = torch.tensor(batch).cuda()
     input_grid = torch.index_select(desc, index=indice0, dim=1)
     out_desc = torch.nn.functional.grid_sample(input_grid, grid)
     for i in range(1, desc.size()[1]):
