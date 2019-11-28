@@ -36,7 +36,6 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
         start = time.time()
         k = 3
         """对于每个特征，在参考帧中找出前k个与之一范距离最相近的特征，如果位置距离太远则作为负样本"""
-
         if params['random drop']>0:
             rand_array = torch.rand(out1_0.size()[0])
             index_loc = torch.nonzero(rand_array>params['random drop']).view(-1).cuda()
@@ -48,7 +47,6 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
             x2 = torch.index_select(x2, index=index_loc, dim=0)
             y2 = torch.index_select(y2, index=index_loc, dim=0)
         
-
         l = out1_0.size()[0]
         T = out1_0.unsqueeze(-1).repeat(1,1,l)
         R = out2_0.unsqueeze(-1).permute(-1,1,0).repeat(l,1,1)
@@ -63,7 +61,7 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
         modify_d_matrix = torch.zeros_like(d_matrix).cuda()
         modify_d_matrix[d_matrix>8.0] = 1.0
         maxi, index = torch.max(modify_d_matrix, 0)
-        k_index = torch.gather(sort_index, 0, index.unsqueeze_(0))
+        k_index = torch.gather(sort_index, 0, index.squeeze_().unsqueeze_(0))
         k_index = k_index.squeeze()
         out2_neg = out2_0[k_index].squeeze_()
         zero_loc = torch.nonzero(maxi==0).squeeze()
@@ -71,11 +69,14 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
         out2_pos, out1_st = out2_0, out1_0
     else:
         out2_neg = out1_0
-#    print(out2_0.size(), out2_neg.size(),zero_loc.size(), out2_neg[zero_loc].size())
         out2_pos, out1_st = out1_0, out1_0
     assert out2_pos.size()==out2_neg.size(), 'positive & nagetive not match'
     assert out1_st.size()==out2_neg.size(), 'target & nagetive not match'
-    loss_single, loss_feat, loss_det = Loss(labels1[batch], labels2[batch], out1_st, out1[batch], out2_pos , out2[batch], out2_neg)
+    l1 = torch.where(labels1[batch]>=1.0, torch.tensor(1.0).cuda(), labels1[batch])
+    l1 = torch.where(l1==-1.0, torch.tensor(1.0).cuda(), l1)
+    l2 = torch.where(labels2[batch]>=1.0, torch.tensor(1.0).cuda(), labels2[batch]) 
+#    print(torch.unique(l1))
+    loss_single, loss_feat, loss_det = Loss(l1, l2, out1_st, out1[batch], out2_pos , out2[batch], out2_neg)
     return loss_single, loss_feat, loss_det
 
 class AverageMeter(object):
@@ -114,12 +115,16 @@ def dist_loc(x1, y1, x2, y2):
 def train(epoch, model, Loss, train_data,optimizer):
     """训练过程"""
     losses = AverageMeter()
+    losses_feat = AverageMeter()
+    losses_det = AverageMeter()
     model.train()
     for step, (inputs1, labels1, inputs2, labels2) in enumerate(train_data):
         inputs1 = inputs1.cuda(params['gpu'][0])
         labels1 = labels1.cuda(params['gpu'][0])
         inputs2 = inputs2.cuda(params['gpu'][0])
         labels2 = labels2.cuda(params['gpu'][0])
+#        print(torch.from_numpy(np.array(loc1)).size())
+#        print(torch.from_numpy(np.array(loc2)).size())
         inputs1.unsqueeze_(1)
         inputs2.unsqueeze_(1)
         #print(torch.nonzero(labels1!=0).size())
@@ -137,11 +142,14 @@ def train(epoch, model, Loss, train_data,optimizer):
         loss_feat = loss_feat/batch
         loss_det = loss_det/batch
         losses.update(loss.item(), inputs1.size(0))
+        losses_feat.update(loss_feat.item(), inputs1.size(0))
+        losses_det.update(loss_det.item(), inputs1.size(0))        
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print('epoch:', epoch, 'step:', step+1,'train loss:', losses.avg, 'lr:', optimizer.param_groups[0]["lr"])
-    return loss, loss_feat, loss_det
+        print('-------------------------------------------------------------------------------')
+        print('epoch:', epoch, 'step:', step+1,'train loss:%0.4f'%losses.avg, 'train feat loss:%0.4f'%losses_feat.avg, 'train det loss:%0.4f'%losses_det.avg, 'lr:%0.4f'%optimizer.param_groups[0]["lr"])
+    return losses.avg, losses_feat.avg, losses_det.avg
 
 
 def valid(epoch, model, loss, valid_data,optimizer):
@@ -178,7 +186,6 @@ if __name__ == '__main__':
 
     model = GCNnet()
     model.cuda(params['gpu'][0])
-    model = nn.DataParallel(model, device_ids=params['gpu'])  # multi-Gpu
     model = nn.DataParallel(model, device_ids=params['gpu'])  # multi-Gpu 
     if params['pretrained']:
          pretrain_dict = torch.load(params['pretrained'], map_location='cpu')
