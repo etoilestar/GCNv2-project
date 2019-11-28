@@ -9,6 +9,12 @@ from torchvision.transforms import transforms
 from torch.utils.data import DataLoader, Dataset
 from config import params
 
+def get_mean_var(img):
+    mean = np.mean(img)
+    var = np.sqrt(np.sum((img-mean)**2))
+#    print(mean, var)
+    return mean, var
+
 def gaussian2D(shape, sigma=1):
     m, n = [(ss - 1.) / 2. for ss in shape]
     y, x = np.ogrid[-m:m + 1, -n:n + 1]
@@ -78,6 +84,7 @@ class Warp:
         V3d = V3d[[0,1], :]/V3d[-1]
         point_out = np.round(V3d)
         point_out = point_out.reshape(point.shape)
+#        print(np.all(point_out == point))
         return point_out
 
 """选择数据增强方式"""
@@ -153,7 +160,12 @@ class MYdata(Dataset):
         img1 = np.array(img1, dtype=np.float32)
         img2 = cv2.resize(cv2.imread(os.path.join(self.image_path,images[1].split('-')[0],images[1].split('-')[1]), 0), self.size)
         img2 = np.array(img2, dtype=np.float32)
+        mean1, var1 = get_mean_var(img1)
+        mean2, var2 = get_mean_var(img2)
         assert not np.any(np.isnan(img2)), 'img error'
+#        print(np.min((img1-mean)/var), np.max((img1-mean)/var))
+#        print(np.unique((img1-mean1)/var1-(img2-mean2)/var2))
+        #return (img1-mean1)/var1, (img2-mean2)/var2
         return img1/255.0, img2/255.0
 
     def find_near(self, img):
@@ -162,7 +174,7 @@ class MYdata(Dataset):
         float_img = float(f)
 #        print(self.gt_arrays.keys())
         image_name_compare = self.gt_arrays[circum] - float_img
-        loc = np.argmin(image_name_compare)
+        loc = np.argmin(np.abs(image_name_compare))
         near_image = self.gt_arrays[circum][loc]
         return near_image, circum
 
@@ -202,31 +214,44 @@ class MYdata(Dataset):
 
     def generate_mask(self,image, keypoint_str, warp, img1, addition_list=None):
         """生成前后两帧的mask"""
-        mask = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
+#        mask = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
         img, _ = os.path.splitext(image)
         near_image, circum = self.find_near(img)
-        label_list1 = None
         if addition_list==None:
             label_list1= keypoint_str
             label_list = self.decode(label_list1)
             warp.load_M1(self.get_QT(near_image, circum)[1], self.get_QT(near_image, circum)[0])
+            mask1 = mask2 = None
         else:
             addition_list = self.decode(addition_list)
             warp.load_M2(self.get_QT(near_image, circum)[1], self.get_QT(near_image, circum)[0])
             label_list = []
             for point in addition_list:
                 label_list.append(warp(point))
-        for i in label_list:
+#                label_list.append([warp([point[1], point[0]])[1],warp([point[1], point[0]])[0]])
+            label_list1 = label_list
+            mask1 = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
+            mask2 = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
+            for s, (i,j) in enumerate(zip(label_list,addition_list)):
         #    assert int(float(i[0]))<=mask.shape[0] and int(float(i[1]))<=mask.shape[1], 'mask location error'
-            mask[int(float(i[1]))][int(float(i[0]))] = 1.0
+                if int(float(i[1]))<mask2.shape[0] and int(float(i[0]))<mask2.shape[1] and int(float(i[1]))>=0 and int(float(i[0]))>=0:
+                    mask2[int(float(i[1]))][int(float(i[0]))] = 1.0
+                    mask1[int(float(j[1]))][int(float(j[0]))] = 1.0
 #            print(mask.shape)
 #            assert int(float(i[0]))<=mask.shape[0] and int(float(i[1]))<=mask.shape[1], 'mask location error'
-            draw_gaussian(mask, [int(float(i[1])), int(float(i[0]))], 8)
+                    draw_gaussian(mask1, [int(float(j[1])), int(float(j[0]))], 8)
+                    draw_gaussian(mask2, [int(float(i[1])), int(float(i[0]))], 8)
+                    mask2[int(float(i[1]))][int(float(i[0]))] += 0.001*s
+                    mask1[int(float(j[1]))][int(float(j[0]))] += 0.001*s
+                else:
+                    mask1[int(float(j[1]))][int(float(j[0]))] = 1.0
+                    draw_gaussian(mask1, [int(float(j[1])), int(float(j[0]))], 8)
+                    mask1[int(float(j[1]))][int(float(j[0]))] = -1.0     
 #        print(np.sum(mask))
 #            ou = cv2.rectangle(ou, (int(float(i[0])) - 2, int(float(i[1])) - 2), (int(float(i[0])) + 2, int(float(i[1])) + 2), (0, 0, 0), 1)
 #        cv2.imwrite('img.png', ou)
-        assert not np.any(np.isnan(mask)), 'mask error'
-        return mask, label_list1
+#        assert not np.any(np.isnan(mask)), 'mask error'
+        return mask1, mask2, label_list1
 
 
     def get_mask(self, images, img1):
@@ -234,11 +259,12 @@ class MYdata(Dataset):
         file_name = images[0].split('-')[0]
         read = pd.read_csv(os.path.join(self.label_file, file_name+'.csv'), header=None)
         warp = Warp(self.size)
-        mask1, label_list1 = self.generate_mask(images[0],read[read[0].values == images[0].split('-')[1]][1].values[0], warp, img1)
-        mask2, _ = self.generate_mask(images[1], read[read[0].values == images[1].split('-')[1]][1].values[0], warp, img1, addition_list=label_list1)
+        _, _, label_list1 = self.generate_mask(images[0],read[read[0].values == images[0].split('-')[1]][1].values[0], warp, img1)
+        mask1, mask2, _ = self.generate_mask(images[1], read[read[0].values == images[1].split('-')[1]][1].values[0], warp, img1, addition_list=label_list1)
         return mask1, mask2
 
     def __getitem__(self, index):
+      #  print(self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1])
         image1, image2 = self.get_img((self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1]))
         mask1, mask2 = self.get_mask((self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1]), image1)
 #        if self.mode == 'train':
