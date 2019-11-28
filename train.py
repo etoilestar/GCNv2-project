@@ -10,16 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from data import MYdata
 from torch import nn, optim
 from loss_Fun import *
-import torch.multiprocessing
-from torch.multiprocessing import set_start_method
 import os
-#set_start_method('spawn')
-
-# def search_all(x, out1, out2):
-#     dist = []
-#     for y in range(out2.size()[1]):
-#         dist.append(Xor(out1[:,x].int(), out2[:,y].int()).cpu().detach().numpy())
-#     return dist
 
 
 def Xor(x, y):
@@ -75,7 +66,6 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
     l1 = torch.where(labels1[batch]>=1.0, torch.tensor(1.0).cuda(), labels1[batch])
     l1 = torch.where(l1==-1.0, torch.tensor(1.0).cuda(), l1)
     l2 = torch.where(labels2[batch]>=1.0, torch.tensor(1.0).cuda(), labels2[batch]) 
-#    print(torch.unique(l1))
     loss_single, loss_feat, loss_det = Loss(l1, l2, out1_st, out1[batch], out2_pos , out2[batch], out2_neg)
     return loss_single, loss_feat, loss_det
 
@@ -95,21 +85,6 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-def dist_vector(x, y):
-    """计算两个向量之间的欧式距离（汉明距离）"""
-    x = x.view(1, len(x))
-    y = y.view(1, len(y))
-    return F.pairwise_distance(x, y, p=2)
-
-
-def dist_loc(x1, y1, x2, y2):
-    """计算向量之间的1范距离"""
-    data1 = torch.cat((x1.unsqueeze_(-1), y1.unsqueeze_(-1)),-1)
-    data2 = torch.cat((x2.unsqueeze_(-1), y2.unsqueeze_(-1)),-1)
-    data1 = data1.view(1, len(data1))
-    data2 = data2.view(1, len(data2))
-    return F.pairwise_distance(data1, data2, p=1)
 
 
 def train(epoch, model, Loss, train_data,optimizer):
@@ -200,8 +175,6 @@ if __name__ == '__main__':
     target_CE = CeLoss()
     feat_loss = FeatLoss(1)
     det_loss = DetLoss(train_CE, target_CE)
-#    model.cuda(params['gpu'][0])
-#    model = nn.DataParallel(model, device_ids=params['gpu'])  # multi-Gpu
     Loss = MYLoss(feat_loss, det_loss, params['c'])
     optimizer = optim.Adam(model.parameters(), lr=params['learning_rate'])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.333, patience=3, verbose=True)
