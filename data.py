@@ -163,9 +163,6 @@ class MYdata(Dataset):
         mean1, var1 = get_mean_var(img1)
         mean2, var2 = get_mean_var(img2)
         assert not np.any(np.isnan(img2)), 'img error'
-#        print(np.min((img1-mean)/var), np.max((img1-mean)/var))
-#        print(np.unique((img1-mean1)/var1-(img2-mean2)/var2))
-        #return (img1-mean1)/var1, (img2-mean2)/var2
         return img1/255.0, img2/255.0
 
     def find_near(self, img):
@@ -233,12 +230,9 @@ class MYdata(Dataset):
             mask1 = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
             mask2 = np.zeros((self.size[1], self.size[0]), dtype=np.float32)
             for s, (i,j) in enumerate(zip(label_list,addition_list)):
-        #    assert int(float(i[0]))<=mask.shape[0] and int(float(i[1]))<=mask.shape[1], 'mask location error'
                 if int(float(i[1]))<mask2.shape[0] and int(float(i[0]))<mask2.shape[1] and int(float(i[1]))>=0 and int(float(i[0]))>=0:
                     mask2[int(float(i[1]))][int(float(i[0]))] = 1.0
                     mask1[int(float(j[1]))][int(float(j[0]))] = 1.0
-#            print(mask.shape)
-#            assert int(float(i[0]))<=mask.shape[0] and int(float(i[1]))<=mask.shape[1], 'mask location error'
                     draw_gaussian(mask1, [int(float(j[1])), int(float(j[0]))], 8)
                     draw_gaussian(mask2, [int(float(i[1])), int(float(i[0]))], 8)
                     mask2[int(float(i[1]))][int(float(i[0]))] += 0.001*s
@@ -247,10 +241,6 @@ class MYdata(Dataset):
                     mask1[int(float(j[1]))][int(float(j[0]))] = 1.0
                     draw_gaussian(mask1, [int(float(j[1])), int(float(j[0]))], 8)
                     mask1[int(float(j[1]))][int(float(j[0]))] = -1.0     
-#        print(np.sum(mask))
-#            ou = cv2.rectangle(ou, (int(float(i[0])) - 2, int(float(i[1])) - 2), (int(float(i[0])) + 2, int(float(i[1])) + 2), (0, 0, 0), 1)
-#        cv2.imwrite('img.png', ou)
-#        assert not np.any(np.isnan(mask)), 'mask error'
         return mask1, mask2, label_list1
 
 
@@ -264,7 +254,6 @@ class MYdata(Dataset):
         return mask1, mask2
 
     def __getitem__(self, index):
-      #  print(self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1])
         image1, image2 = self.get_img((self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1]))
         mask1, mask2 = self.get_mask((self.mylist[index], self.original_img_list[self.original_img_list.index(self.mylist[index])+1]), image1)
 #        if self.mode == 'train':
