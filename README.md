@@ -5,4 +5,4 @@ pytorch >= 1.0
 numpy
 opencv-python
 
-Here is the training code of GCNv2. I choose three kinds of the TUM datasets, and i use focal loss rather than BCEloss 
+Here is the training code of GCNv2. I choose the TUM datasets, and i use focal loss rather than BCEloss 
