@@ -6,10 +6,9 @@ from config import params
 
 def deal(img):
 #    img = cv2.imread(img, 0)
-    array = cv2.resize(img, (640,480))
  #   array = np.array(array)
-    img = array/255.0
-    return img.astype('float32'), array
+    img = img/255.0
+    return img.astype('float32')
 
 if __name__ == '__main__':
     net = GCNnet()
@@ -26,8 +25,9 @@ if __name__ == '__main__':
     video = cv2.VideoWriter("VideoTest1.mp4", cv2.VideoWriter_fourcc('I', '4', '2', '0'), 24, (640, 480))
     while ret:
         ret, frame = cap.read()
+        frame = cv2.resize(frame, (640,480))
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        input, array = deal(img)
+        input = deal(img)
         input = torch.from_numpy(input).cuda()
         input.unsqueeze_(0).unsqueeze_(0)
         with torch.no_grad():
