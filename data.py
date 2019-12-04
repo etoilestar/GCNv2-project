@@ -170,7 +170,7 @@ class MYdata(Dataset):
         circum, f = img.split('-')
         float_img = float(f)
 #        print(self.gt_arrays.keys())
-        image_name_compare = self.gt_arrays[circum] - float_img
+        image_name_compare = np.abs(self.gt_arrays[circum] - float_img)
         loc = np.argmin(np.abs(image_name_compare))
         near_image = self.gt_arrays[circum][loc]
         return near_image, circum
