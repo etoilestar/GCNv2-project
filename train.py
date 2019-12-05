@@ -38,11 +38,12 @@ def caculate_loss(batch,labels1, labels2, desc1, desc2, det1, det2):
             x2 = torch.index_select(x2, index=index_loc, dim=0)
             y2 = torch.index_select(y2, index=index_loc, dim=0)
         
-        l = out1_0.size()[0]
-        T = out1_0.unsqueeze(-1).repeat(1,1,l)
-        R = out2_0.unsqueeze(-1).permute(-1,1,0).repeat(l,1,1)
-        ADDMatrix = torch.sum(torch.abs(T+R), 0)
-        sort_index = ADDMatrix.sort(1, descending = True).indices[:k]
+#        l = out1_0.size()[0]
+#        T = out1_0.unsqueeze(-1).repeat(1,1,l)
+#        R = out2_0.unsqueeze(-1).permute(-1,1,0).repeat(l,1,1)
+#        ADDMatrix = torch.sum(torch.abs(T+R), 0)
+        MultiMatrix = out2_0@torch.t(out1_0)
+        sort_index = MultiMatrix.sort(0, descending = True).indices[:k]
         out1_0.x = x1
         out1_0.y = y1
         out2_0.x = x2
